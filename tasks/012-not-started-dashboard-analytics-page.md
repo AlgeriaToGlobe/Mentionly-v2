@@ -10,7 +10,7 @@ not-started
 Read `PROJECT_CONTEXT.md` at the repo root before starting.
 
 ## Objective
-Build the analytics page for the dashboard with interactive charts, date range filtering, brand mention tracking, and competitor activity insights, all powered by Supabase analytics data and Recharts visualizations.
+Build the analytics page with interactive Recharts visualizations, date range filtering, brand mention tracking, and competitor activity insights, all powered by Supabase data.
 
 ## Scope
 - Files to create or modify:
@@ -21,25 +21,25 @@ Build the analytics page for the dashboard with interactive charts, date range f
 - Files NOT to touch:
   - `src/app/dashboard/layout.tsx` (already exists from task 009)
   - `src/lib/supabase/client.ts`, `src/lib/supabase/server.ts` (already exist from task 002)
-  - Any marketing page components
+  - Marketing page components
 
 ## Acceptance Criteria
 - [ ] `src/app/dashboard/analytics/page.tsx` exists and renders at `/dashboard/analytics`
 - [ ] `src/components/dashboard/charts/traffic-chart.tsx` exists as a named export
 - [ ] `src/components/dashboard/charts/subreddit-chart.tsx` exists as a named export
 - [ ] `src/components/dashboard/charts/upvote-chart.tsx` exists as a named export
-- [ ] Date range picker at the top of the page with preset buttons (7d, 30d, 90d) and a custom date range option
+- [ ] Date range picker at top with preset buttons (7d, 30d, 90d) and custom date range option
 - [ ] Line chart showing traffic/clicks over time with orange line (`#F97316`) and filled area gradient
 - [ ] Line chart showing comments placed over time
 - [ ] Horizontal bar chart showing top performing subreddits by comment count or upvotes
-- [ ] Brand mention feed displayed as a scrollable list with subreddit name, thread title, and date
-- [ ] Competitor activity section rendered as a table with competitor name, mention count, and trend indicator (up/down arrow)
-- [ ] All charts use the orange accent color (`#F97316`) as the primary color
-- [ ] Data is fetched from the Supabase `analytics`, `comments`, `threads`, and `competitors` tables
+- [ ] Brand mention feed as a scrollable list with subreddit name, thread title, and date
+- [ ] Competitor activity section as a table with competitor name, mention count, and trend indicator (up/down arrow with green/red color)
+- [ ] All charts use the orange accent color (`#F97316`) as primary color
+- [ ] Data fetched from Supabase `analytics`, `comments`, `threads`, and `competitors` tables
 - [ ] Loading skeletons display while chart data is being fetched
 - [ ] Empty states render when no data is available for a given date range
 - [ ] Page is responsive: charts stack vertically on mobile, 2-column grid on desktop
-- [ ] Recharts `ResponsiveContainer` is used so charts resize properly
+- [ ] Recharts `ResponsiveContainer` used so charts resize properly
 
 ## Instructions
 
@@ -74,17 +74,17 @@ Create `src/components/dashboard/charts/upvote-chart.tsx`:
 Create `src/app/dashboard/analytics/page.tsx`:
 1. Mark as `"use client"`.
 2. Export default function `AnalyticsPage`.
-3. **Date Range Picker**: Render preset buttons (7d, 30d, 90d) as a button group at the top right. Use state to track the selected range. Calculate `startDate` and `endDate` from the selection. Optionally add a custom date range picker using two date inputs.
+3. **Date Range Picker**: Render preset buttons (7d, 30d, 90d) as a button group at the top right. Use state to track selected range. Calculate `startDate` and `endDate` from the selection. Optionally add a custom date range picker using two date inputs.
 4. **Data Fetching**: On mount and range change, fetch from Supabase:
    - `analytics` table: filter by `project_id` and `date` within range, order by `date` ascending
    - `threads` table: for brand mention feed (threads where title or subreddit matches brand keywords)
    - `competitors` table: for competitor activity section
-5. **Layout**: Use a responsive grid.
+5. **Layout**: Use a responsive grid:
    - Top row: date range picker spanning full width
    - Second row: TrafficChart (clicks over time) — full width or `col-span-2`
    - Third row: UpvoteChart (upvotes + comments over time) and SubredditChart side-by-side (`grid-cols-1 lg:grid-cols-2 gap-6`)
    - Fourth section: Brand Mention Feed — a scrollable card with a list of mentions, each showing subreddit badge, thread title (truncated), and date
-   - Fifth section: Competitor Activity Table — a table using shadcn Table components with columns: Competitor, Mentions, Trend (show TrendingUp/TrendingDown icon with green/red color)
+   - Fifth section: Competitor Activity Table — using shadcn Table components with columns: Competitor, Mentions, Trend (TrendingUp/TrendingDown icon with green/red color)
 
 ### Step 5: Implement empty and loading states
 1. Each chart component handles its own loading skeleton internally.
