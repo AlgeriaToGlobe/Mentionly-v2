@@ -1,24 +1,25 @@
 import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
-export async function POST(request: Request) {
+const waitlistSchema = z.object({
+  email: z.string().email("Invalid email format").max(255),
+  source: z.string().optional().default("website"),
+});
+
+export async function POST(request: NextRequest) {
   try {
-    const { email, source, referrer } = await request.json();
+    const body = await request.json();
+    const result = waitlistSchema.safeParse(body);
 
-    if (!email || typeof email !== "string") {
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Email is required" },
+        { success: false, error: result.error.errors[0].message },
         { status: 400 }
       );
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 }
-      );
-    }
+    const { email, source } = result.data;
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,14 +28,15 @@ export async function POST(request: Request) {
 
     const { error } = await supabase.from("waitlist").insert({
       email,
-      source: source ?? "website",
-      referrer: referrer ?? null,
+      source,
+      referrer: request.headers.get("referer") ?? null,
+      ip_address: request.headers.get("x-forwarded-for")?.split(",")[0] ?? null,
     });
 
     if (error) {
       if (error.code === "23505") {
         return NextResponse.json(
-          { message: "You're already on the waitlist!" },
+          { success: true, message: "You're already on the waitlist!" },
           { status: 200 }
         );
       }
@@ -42,12 +44,12 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { message: "Successfully joined the waitlist!" },
-      { status: 201 }
+      { success: true, message: "You're on the list! We'll notify you when Mentionly launches." },
+      { status: 200 }
     );
   } catch {
     return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
+      { success: false, error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }

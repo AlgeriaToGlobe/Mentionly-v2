@@ -1,0 +1,100 @@
+{
+  "name": "Mentionly - Analytics Aggregator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 12 }]
+        }
+      },
+      "id": "node-1",
+      "name": "Every 12 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/projects?is_active=eq.true&select=id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" }
+          ]
+        }
+      },
+      "id": "node-2",
+      "name": "Fetch Active Projects",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "node-3",
+      "name": "Loop Over Projects",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const projectId = $json.id;\nconst today = new Date().toISOString().split('T')[0];\nconst supabaseUrl = $env.SUPABASE_URL;\nconst key = $env.SUPABASE_SERVICE_ROLE_KEY;\nconst headers = { 'apikey': key, 'Authorization': 'Bearer ' + key };\n\nasync function count(table, filter) {\n  const res = await fetch(`${supabaseUrl}/rest/v1/${table}?${filter}&select=id`, { headers, method: 'HEAD' });\n  return parseInt(res.headers.get('content-range')?.split('/')[1] || '0');\n}\n\nconst threadsDiscovered = await count('threads', `project_id=eq.${projectId}&created_at=gte.${today}`);\nconst commentsPosted = await count('comments', `project_id=eq.${projectId}&posted_at=gte.${today}&status=eq.live`);\n\nreturn [{ json: {\n  project_id: projectId,\n  date: today,\n  threads_discovered: threadsDiscovered,\n  comments_posted: commentsPosted,\n  total_upvotes: 0,\n  estimated_clicks: 0,\n  brand_mentions: 0,\n  llm_citations: 0\n}}];"
+      },
+      "id": "node-4",
+      "name": "Count Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/analytics",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "node-5",
+      "name": "Upsert Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "Every 12 Hours": {
+      "main": [[{ "node": "Fetch Active Projects", "type": "main", "index": 0 }]]
+    },
+    "Fetch Active Projects": {
+      "main": [[{ "node": "Loop Over Projects", "type": "main", "index": 0 }]]
+    },
+    "Loop Over Projects": {
+      "main": [
+        [{ "node": "Count Metrics", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Count Metrics": {
+      "main": [[{ "node": "Upsert Analytics", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

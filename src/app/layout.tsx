@@ -1,22 +1,42 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
 import "./globals.css";
 
+export const viewport: Viewport = {
+  themeColor: "#F97316",
+};
+
 export const metadata: Metadata = {
-  title: "Mentionly — AI-Powered Reddit Marketing Platform",
+  metadataBase: new URL("https://mentionly.com"),
+  title: {
+    default: "Mentionly — AI-Powered Reddit Marketing Platform",
+    template: "%s | Mentionly",
+  },
   description:
     "Discover high-intent Reddit threads, generate natural comments, and get your brand mentioned — all without managing a single Reddit account.",
   openGraph: {
-    title: "Mentionly — Turn Reddit Into Your #1 Growth Channel",
+    title: "Mentionly — AI-Powered Reddit Marketing Platform",
     description:
-      "Discover high-intent Reddit threads, generate natural comments, and get your brand mentioned.",
+      "Turn Reddit into your #1 growth channel with AI-powered thread discovery and comment generation.",
     url: "https://mentionly.com",
+    siteName: "Mentionly",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Mentionly — AI-Powered Reddit Marketing Platform",
+      },
+    ],
     type: "website",
-    images: ["/og-image.png"],
   },
   twitter: {
     card: "summary_large_image",
+    title: "Mentionly — AI-Powered Reddit Marketing Platform",
+    description: "Turn Reddit into your #1 growth channel.",
+    images: ["/og-image.png"],
   },
+  icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({
