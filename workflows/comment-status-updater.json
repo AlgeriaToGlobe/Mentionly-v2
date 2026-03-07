@@ -1,0 +1,136 @@
+{
+  "name": "Mentionly - Comment Status Updater",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 2 }]
+        }
+      },
+      "id": "node-1",
+      "name": "Every 2 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/comments?status=eq.live&reddit_comment_id=not.is.null&select=id,reddit_comment_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" }
+          ]
+        }
+      },
+      "id": "node-2",
+      "name": "Fetch Live Comments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "node-3",
+      "name": "Batch Comments",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.reddit.com/api/info.json?id=t1_{{ $json.reddit_comment_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "User-Agent", "value": "Mentionly/1.0" }
+          ]
+        },
+        "options": {
+          "retry": { "maxTries": 2, "waitBetweenTries": 2000 }
+        }
+      },
+      "id": "node-4",
+      "name": "Check Reddit API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const commentId = $json.id || $input.first().json.id;\nconst redditData = $json.data?.children?.[0]?.data;\nconst upvotes = redditData?.score || 0;\n\nreturn [{ json: { id: commentId, upvotes } }];"
+      },
+      "id": "node-5",
+      "name": "Extract Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/comments?id=eq.{{ $json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ upvotes: $json.upvotes, updated_at: new Date().toISOString() }) }}"
+      },
+      "id": "node-6",
+      "name": "Update Comment Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "node-7",
+      "name": "Rate Limit Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1570, 300]
+    }
+  ],
+  "connections": {
+    "Every 2 Hours": {
+      "main": [[{ "node": "Fetch Live Comments", "type": "main", "index": 0 }]]
+    },
+    "Fetch Live Comments": {
+      "main": [[{ "node": "Batch Comments", "type": "main", "index": 0 }]]
+    },
+    "Batch Comments": {
+      "main": [
+        [{ "node": "Check Reddit API", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Check Reddit API": {
+      "main": [[{ "node": "Extract Score", "type": "main", "index": 0 }]]
+    },
+    "Extract Score": {
+      "main": [[{ "node": "Update Comment Metrics", "type": "main", "index": 0 }]]
+    },
+    "Update Comment Metrics": {
+      "main": [[{ "node": "Rate Limit Wait", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

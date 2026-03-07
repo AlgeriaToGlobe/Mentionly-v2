@@ -1,54 +1,38 @@
 "use client";
 
 import {
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface TrafficChartProps {
-  data?: { date: string; clicks: number }[];
+interface UpvoteChartProps {
+  data?: Array<{ date: string; upvotes: number; comments: number }>;
   isLoading?: boolean;
 }
 
-const demoData = Array.from({ length: 30 }, (_, i) => {
-  const d = new Date();
-  d.setDate(d.getDate() - (29 - i));
-  return {
-    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    clicks: Math.floor(80 + i * 8 + Math.random() * 40),
-  };
-});
-
-export function TrafficChart({ data, isLoading = false }: TrafficChartProps) {
+export function UpvoteChart({ data, isLoading = false }: UpvoteChartProps) {
   if (isLoading) {
     return <Skeleton className="w-full h-[300px] rounded-lg" />;
   }
 
-  const chartData = data ?? demoData;
-
-  if (!chartData.length) {
+  if (!data?.length) {
     return (
       <div className="flex items-center justify-center h-[300px] text-sm text-gray-400">
-        No traffic data available
+        No engagement data available
       </div>
     );
   }
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <AreaChart data={chartData}>
-        <defs>
-          <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#F97316" stopOpacity={0.12} />
-            <stop offset="95%" stopColor="#F97316" stopOpacity={0} />
-          </linearGradient>
-        </defs>
+      <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
         <XAxis
           dataKey="date"
@@ -65,14 +49,22 @@ export function TrafficChart({ data, isLoading = false }: TrafficChartProps) {
             fontSize: "13px",
           }}
         />
-        <Area
+        <Legend />
+        <Line
           type="monotone"
-          dataKey="clicks"
+          dataKey="upvotes"
           stroke="#F97316"
-          fill="url(#colorClicks)"
           strokeWidth={2}
+          dot={false}
         />
-      </AreaChart>
+        <Line
+          type="monotone"
+          dataKey="comments"
+          stroke="#3B82F6"
+          strokeWidth={2}
+          dot={false}
+        />
+      </LineChart>
     </ResponsiveContainer>
   );
 }

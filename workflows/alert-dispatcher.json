@@ -1,0 +1,108 @@
+{
+  "name": "Mentionly - Alert Dispatcher (Daily Digest)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }]
+        }
+      },
+      "id": "node-1",
+      "name": "Daily 9AM UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/alerts?is_read=eq.false&select=*,projects(user_id,profiles(email,full_name))",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" }
+          ]
+        },
+        "options": {
+          "retry": { "maxTries": 2, "waitBetweenTries": 5000 }
+        }
+      },
+      "id": "node-2",
+      "name": "Query Unread Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const alerts = $input.all();\nconst grouped = {};\n\nfor (const alert of alerts) {\n  const d = alert.json;\n  const userId = d.projects?.user_id || 'unknown';\n  const email = d.projects?.profiles?.email || '';\n  const name = d.projects?.profiles?.full_name || 'User';\n  \n  if (!email) continue;\n  \n  if (!grouped[userId]) {\n    grouped[userId] = { email, name, alerts: [], alertIds: [] };\n  }\n  grouped[userId].alerts.push({ title: d.title, body: d.body, type: d.type });\n  grouped[userId].alertIds.push(d.id);\n}\n\nreturn Object.values(grouped).map(g => ({ json: g }));"
+      },
+      "id": "node-3",
+      "name": "Group by User",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{$env.RESEND_API_KEY}}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: 'Mentionly <alerts@mentionly.com>', to: $json.email, subject: 'Mentionly Daily Digest - ' + $json.alerts.length + ' new alerts', html: '<h2>Hi ' + $json.name + ',</h2><p>Here are your latest alerts:</p><ul>' + $json.alerts.map(a => '<li><strong>' + a.title + '</strong>: ' + (a.body || '') + '</li>').join('') + '</ul><p><a href=\"https://mentionly.com/dashboard\">View Dashboard</a></p>' }) }}"
+      },
+      "id": "node-4",
+      "name": "Send Digest Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/alerts?id=in.({{ $json.alertIds.join(',') }})",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"is_read\": true, \"delivered_via\": \"both\" }"
+      },
+      "id": "node-5",
+      "name": "Mark Delivered",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "Daily 9AM UTC": {
+      "main": [[{ "node": "Query Unread Alerts", "type": "main", "index": 0 }]]
+    },
+    "Query Unread Alerts": {
+      "main": [[{ "node": "Group by User", "type": "main", "index": 0 }]]
+    },
+    "Group by User": {
+      "main": [[{ "node": "Send Digest Email", "type": "main", "index": 0 }]]
+    },
+    "Send Digest Email": {
+      "main": [[{ "node": "Mark Delivered", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

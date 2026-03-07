@@ -1,0 +1,178 @@
+{
+  "name": "Mentionly - Reddit Thread Discovery",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "id": "node-1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/projects?is_active=eq.true&select=id,target_keywords,target_subreddits,brand_names",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" }
+          ]
+        },
+        "options": {
+          "retry": { "maxTries": 2, "waitBetweenTries": 5000 }
+        }
+      },
+      "id": "node-2",
+      "name": "Fetch Active Projects",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "node-3",
+      "name": "Loop Over Projects",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.reddit.com/search.json?q={{ $json.target_keywords ? $json.target_keywords.join('+OR+') : '' }}&sort=relevance&t=day&limit=25",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "User-Agent", "value": "Mentionly/1.0" }
+          ]
+        },
+        "options": {
+          "retry": { "maxTries": 2, "waitBetweenTries": 5000 }
+        }
+      },
+      "id": "node-4",
+      "name": "Search Reddit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const posts = item.json?.data?.children || [];\n  const projectId = item.json?.project_id || items[0]?.json?.id;\n  \n  for (const post of posts) {\n    const d = post.data;\n    const freshness = Math.max(0, 100 - Math.floor((Date.now()/1000 - d.created_utc) / 3600));\n    const buyingIntent = /\\b(best|recommend|looking for|suggest|which|review|worth|buy|purchase|affordable)\\b/i.test(d.title) ? 80 : 30;\n    const overall = Math.round((d.score * 0.2) + (buyingIntent * 0.4) + (freshness * 0.3) + (d.num_comments * 0.1));\n    \n    results.push({\n      json: {\n        project_id: projectId,\n        reddit_thread_id: d.id,\n        subreddit: 'r/' + d.subreddit,\n        title: d.title,\n        url: 'https://reddit.com' + d.permalink,\n        author: d.author,\n        score: d.score,\n        num_comments: d.num_comments,\n        estimated_traffic: Math.round(d.score * 2.5),\n        buying_intent: buyingIntent,\n        freshness_score: freshness,\n        overall_score: overall,\n        links_allowed: !d.no_follow,\n        status: 'new'\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "node-5",
+      "name": "Score Threads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/threads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "retry": { "maxTries": 2, "waitBetweenTries": 5000 }
+        }
+      },
+      "id": "node-6",
+      "name": "Upsert Threads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.overall_score }}",
+              "operation": "largerEqual",
+              "value2": 70
+            }
+          ]
+        }
+      },
+      "id": "node-7",
+      "name": "High Score Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1570, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/alerts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Authorization", "value": "Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ project_id: $json.project_id, type: 'new_thread', title: 'High-value thread discovered', body: $json.title + ' in ' + $json.subreddit + ' (score: ' + $json.overall_score + ')', is_read: false, delivered_via: 'in_app' }) }}"
+      },
+      "id": "node-8",
+      "name": "Create Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1790, 200]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Fetch Active Projects", "type": "main", "index": 0 }]]
+    },
+    "Fetch Active Projects": {
+      "main": [[{ "node": "Loop Over Projects", "type": "main", "index": 0 }]]
+    },
+    "Loop Over Projects": {
+      "main": [
+        [{ "node": "Search Reddit", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Search Reddit": {
+      "main": [[{ "node": "Score Threads", "type": "main", "index": 0 }]]
+    },
+    "Score Threads": {
+      "main": [[{ "node": "Upsert Threads", "type": "main", "index": 0 }]]
+    },
+    "Upsert Threads": {
+      "main": [[{ "node": "High Score Filter", "type": "main", "index": 0 }]]
+    },
+    "High Score Filter": {
+      "main": [
+        [{ "node": "Create Alert", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

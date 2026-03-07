@@ -1,101 +1,98 @@
 "use client";
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { AccountForm } from "@/components/dashboard/settings/account-form";
+import { KeywordsForm } from "@/components/dashboard/settings/keywords-form";
+import { NotificationsForm } from "@/components/dashboard/settings/notifications-form";
+import { Users, Key, CreditCard } from "lucide-react";
+import Link from "next/link";
 
 export default function SettingsPage() {
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold text-gray-900">
-          Settings
-        </h1>
-        <p className="text-body-sm text-gray-500 mt-1">
-          Manage your account and preferences
+        <h1 className="text-2xl font-heading font-bold text-gray-900">Settings</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Manage your account and project configuration.
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-card space-y-6">
-        <div>
-          <h2 className="font-heading font-semibold text-gray-900 text-lg mb-4">
-            Account
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" defaultValue="Demo User" />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                defaultValue="demo@mentionly.com"
-                disabled
-              />
-            </div>
-            <Button>Save Changes</Button>
+      <Tabs defaultValue="account">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="keywords">Keywords</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="billing">Billing</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="api">API</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="account" className="mt-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 max-w-2xl">
+            <h2 className="font-heading font-semibold text-gray-900 text-lg mb-6">Account Settings</h2>
+            <AccountForm />
           </div>
-        </div>
+        </TabsContent>
 
-        <Separator />
-
-        <div>
-          <h2 className="font-heading font-semibold text-gray-900 text-lg mb-4">
-            Project Settings
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="project-name">Project Name</Label>
-              <Input id="project-name" defaultValue="AcmeWatch" />
-            </div>
-            <div>
-              <Label htmlFor="website">Website URL</Label>
-              <Input
-                id="website"
-                type="url"
-                defaultValue="https://acmewatch.com"
-              />
-            </div>
-            <div>
-              <Label htmlFor="keywords">Target Keywords</Label>
-              <Input
-                id="keywords"
-                defaultValue="best watches under 500, affordable luxury watches"
-                placeholder="Comma-separated keywords"
-              />
-            </div>
-            <Button>Save Project</Button>
+        <TabsContent value="keywords" className="mt-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 max-w-2xl">
+            <h2 className="font-heading font-semibold text-gray-900 text-lg mb-6">Keyword Configuration</h2>
+            <KeywordsForm />
           </div>
-        </div>
+        </TabsContent>
 
-        <Separator />
+        <TabsContent value="notifications" className="mt-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 max-w-2xl">
+            <h2 className="font-heading font-semibold text-gray-900 text-lg mb-6">Notification Preferences</h2>
+            <NotificationsForm />
+          </div>
+        </TabsContent>
 
-        <div>
-          <h2 className="font-heading font-semibold text-gray-900 text-lg mb-4">
-            Billing
-          </h2>
-          <p className="text-body-sm text-gray-500 mb-4">
-            You are on the <strong>Free</strong> plan. Upgrade to unlock more
-            features.
-          </p>
-          <Button variant="outline">Upgrade Plan</Button>
-        </div>
+        <TabsContent value="billing" className="mt-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 max-w-2xl text-center py-12">
+            <CreditCard className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <h2 className="font-heading font-semibold text-gray-900 text-lg">Payments Coming Soon</h2>
+            <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+              You&apos;re currently on the <strong>Free</strong> plan. Paid plans with advanced features are launching soon.
+              Join the waitlist to be the first to know.
+            </p>
+            <Button asChild className="mt-6">
+              <Link href="/#pricing">Join Waitlist</Link>
+            </Button>
+          </div>
+        </TabsContent>
 
-        <Separator />
+        <TabsContent value="team" className="mt-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 max-w-2xl text-center py-12">
+            <Users className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <h2 className="font-heading font-semibold text-gray-900 text-lg">Team Management</h2>
+            <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+              Available on Pro and Max plans. Upgrade to invite team members and collaborate on projects.
+            </p>
+            <Button disabled className="mt-6" variant="outline">
+              Invite Member
+            </Button>
+          </div>
+        </TabsContent>
 
-        <div>
-          <h2 className="font-heading font-semibold text-gray-900 text-lg mb-4 text-red-600">
-            Danger Zone
-          </h2>
-          <p className="text-body-sm text-gray-500 mb-4">
-            Permanently delete your account and all associated data.
-          </p>
-          <Button variant="destructive">Delete Account</Button>
-        </div>
-      </div>
+        <TabsContent value="api" className="mt-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 max-w-2xl text-center py-12">
+            <Key className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <h2 className="font-heading font-semibold text-gray-900 text-lg">API Access</h2>
+            <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+              Available on Max plan. Access the Mentionly API to integrate with your tools.
+            </p>
+            <div className="mt-4 inline-flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2 text-sm text-gray-400 font-mono">
+              mk_••••••••••••••••
+              <Button size="sm" variant="outline" disabled>Copy</Button>
+            </div>
+            <div className="mt-4">
+              <Button variant="outline">Upgrade to Max</Button>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /dashboard/*
+Disallow: /api
+Disallow: /api/*
+Disallow: /auth/callback
+
+Sitemap: https://mentionly.com/sitemap.xml

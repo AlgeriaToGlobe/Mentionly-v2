@@ -1,0 +1,126 @@
+{
+  "name": "Mentionly - Waitlist Welcome Email",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "waitlist-welcome",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.email }}",
+              "operation": "regex",
+              "value2": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+            }
+          ]
+        }
+      },
+      "id": "node-2",
+      "name": "Validate Email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.RESEND_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "from",
+              "value": "Mentionly <hello@mentionly.com>"
+            },
+            {
+              "name": "to",
+              "value": "={{ $json.body.email }}"
+            },
+            {
+              "name": "subject",
+              "value": "Welcome to the Mentionly Waitlist!"
+            },
+            {
+              "name": "html",
+              "value": "<h1>Welcome to Mentionly!</h1><p>You're on the waitlist! We'll notify you as soon as Mentionly launches.</p><p>In the meantime, here's what you can expect:</p><ul><li>AI-powered Reddit thread discovery</li><li>Natural comment generation</li><li>Brand mention tracking</li></ul><p>Stay tuned!</p><p>— The Mentionly Team</p>"
+            }
+          ]
+        },
+        "options": {
+          "retry": {
+            "maxTries": 2,
+            "waitBetweenTries": 5000
+          }
+        }
+      },
+      "id": "node-3",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [690, 200]
+    },
+    {
+      "parameters": {},
+      "id": "node-4",
+      "name": "Invalid Email",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [690, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Welcome email sent' }) }}"
+      },
+      "id": "node-5",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [910, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Validate Email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Email": {
+      "main": [
+        [{ "node": "Send Welcome Email", "type": "main", "index": 0 }],
+        [{ "node": "Invalid Email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [
+        [{ "node": "Respond Success", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
