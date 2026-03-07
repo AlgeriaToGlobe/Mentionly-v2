@@ -1,6 +1,7 @@
 -- ============================================================================
 -- MENTIONLY — Combined Database Migration
 -- Run this entire file in the Supabase SQL Editor
+-- Safe to re-run: all statements are idempotent (IF NOT EXISTS / DROP IF EXISTS)
 -- ============================================================================
 
 -- ============================================================================
@@ -19,7 +20,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -36,6 +39,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -48,6 +52,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS set_updated_at ON profiles;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
@@ -71,8 +76,10 @@ CREATE TABLE IF NOT EXISTS public.projects (
 );
 
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can CRUD own projects" ON projects;
 CREATE POLICY "Users can CRUD own projects" ON projects FOR ALL USING (auth.uid() = user_id);
 
+DROP TRIGGER IF EXISTS set_updated_at ON projects;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON projects
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
@@ -101,12 +108,14 @@ CREATE TABLE IF NOT EXISTS public.threads (
   UNIQUE(project_id, reddit_thread_id)
 );
 
-CREATE INDEX idx_threads_project_status ON threads(project_id, status);
-CREATE INDEX idx_threads_overall_score ON threads(overall_score DESC);
+CREATE INDEX IF NOT EXISTS idx_threads_project_status ON threads(project_id, status);
+CREATE INDEX IF NOT EXISTS idx_threads_overall_score ON threads(overall_score DESC);
 
 ALTER TABLE threads ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own threads" ON threads;
 CREATE POLICY "Users can read own threads" ON threads FOR SELECT
   USING (project_id IN (SELECT id FROM projects WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can update own threads" ON threads;
 CREATE POLICY "Users can update own threads" ON threads FOR UPDATE
   USING (project_id IN (SELECT id FROM projects WHERE user_id = auth.uid()));
 
@@ -135,12 +144,14 @@ CREATE TABLE IF NOT EXISTS public.comments (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_comments_project_status ON comments(project_id, status);
-CREATE INDEX idx_comments_user ON comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_comments_project_status ON comments(project_id, status);
+CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id);
 
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can CRUD own comments" ON comments;
 CREATE POLICY "Users can CRUD own comments" ON comments FOR ALL USING (auth.uid() = user_id);
 
+DROP TRIGGER IF EXISTS set_updated_at ON comments;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON comments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
@@ -161,9 +172,10 @@ CREATE TABLE IF NOT EXISTS public.analytics (
   UNIQUE(project_id, date)
 );
 
-CREATE INDEX idx_analytics_project_date ON analytics(project_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_project_date ON analytics(project_id, date DESC);
 
 ALTER TABLE analytics ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own analytics" ON analytics;
 CREATE POLICY "Users can read own analytics" ON analytics FOR SELECT
   USING (project_id IN (SELECT id FROM projects WHERE user_id = auth.uid()));
 
@@ -182,6 +194,7 @@ CREATE TABLE IF NOT EXISTS public.competitors (
 );
 
 ALTER TABLE competitors ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can CRUD own competitors" ON competitors;
 CREATE POLICY "Users can CRUD own competitors" ON competitors FOR ALL
   USING (project_id IN (SELECT id FROM projects WHERE user_id = auth.uid()));
 
@@ -198,6 +211,7 @@ CREATE TABLE IF NOT EXISTS public.waitlist (
 );
 
 ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can insert waitlist" ON waitlist;
 CREATE POLICY "Anyone can insert waitlist" ON waitlist FOR INSERT WITH CHECK (true);
 
 -- ============================================================================
@@ -214,11 +228,13 @@ CREATE TABLE IF NOT EXISTS public.alerts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_alerts_project_read ON alerts(project_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_alerts_project_read ON alerts(project_id, is_read);
 
 ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own alerts" ON alerts;
 CREATE POLICY "Users can read own alerts" ON alerts FOR SELECT
   USING (project_id IN (SELECT id FROM projects WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can update own alerts" ON alerts;
 CREATE POLICY "Users can update own alerts" ON alerts FOR UPDATE
   USING (project_id IN (SELECT id FROM projects WHERE user_id = auth.uid()));
 
@@ -236,8 +252,9 @@ CREATE TABLE IF NOT EXISTS public.credit_transactions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_credit_tx_user ON credit_transactions(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_credit_tx_user ON credit_transactions(user_id, created_at DESC);
 
 ALTER TABLE credit_transactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own transactions" ON credit_transactions;
 CREATE POLICY "Users can read own transactions" ON credit_transactions FOR SELECT
   USING (auth.uid() = user_id);
